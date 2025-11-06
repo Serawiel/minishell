@@ -1,5 +1,7 @@
 #include "vbc.h"
 
+node	*pars_add(char **s);
+
 node	*create_node(int type, int val, node *l, node *r)
 {
 	node	*ret;
@@ -52,15 +54,19 @@ int	expect(char **s, char c)
 	return (0);
 }
 
-node	*pars_other(char **s)
+node	*pars_var(char **s)
 {
 	node	*ret;
 
 	if (accept(s, '('))
 	{
 		ret = pars_add(s);
-		if (!except(s, ')'))
+		if (!ret || !expect(s, ')'))
+		{
+			destroy_tree(ret);
 			return (NULL);
+		}
+		return (ret);
 	}
 	if (isdigit(**s))
 	{
@@ -68,28 +74,63 @@ node	*pars_other(char **s)
 		if (!ret)
 			return (NULL);
 		(*s)++;
+		return (ret);
 	}
-	else
-	{
-		unexpected(**s);
-		return (NULL);
-	}
-	return (ret);
+	return (NULL);
 }
 
 node	*pars_mult(char **s)
 {
-	node *ret;
-	if (accept(s, '*'))
+	node	*left;
+	node	*right;
+
+	left = pars_var(s);
+	if (!left)
+		return (NULL);
+	while (accept(s, '*'))
 	{
-		ret = create_node(MULTI)
+		right = pars_var(s);
+		if (!right)
+		{
+			destroy_tree(left);
+			return (NULL);
+		}
+		left = create_node(MULTI, 0, left, right); // ✅ Met à jour left
+		if (!left)
+		{
+			destroy_tree(right);
+			return (NULL);
+		}
+		// ✅ PAS DE RETURN ICI !
 	}
+	return (left); // ✅ Return APRÈS le while
 }
 
-void	*pars_add(char **s)
+node	*pars_add(char **s)
 {
-	// noeud gauche = pars_mult();
-	// si + cree un noeud a droite
+	node	*left;
+	node	*right;
+
+	left = pars_mult(s);
+	if (!left)
+		return (NULL);
+	while (accept(s, '+'))
+	{
+		right = pars_mult(s);
+		if (!right)
+		{
+			destroy_tree(left);
+			return (NULL);
+		}
+		left = create_node(ADD, 0, left, right); // ✅ Met à jour left
+		if (!left)
+		{
+			destroy_tree(right);
+			return (NULL);
+		}
+		// ✅ PAS DE RETURN ICI ! La boucle continue
+	}
+	return (left); // ✅ Return APRÈS le while
 }
 
 node	*parse_expr(char *s)
@@ -116,6 +157,7 @@ int	eval_tree(node *tree)
 	case VAL:
 		return (tree->val);
 	}
+	return (-1);
 }
 
 int	main(int argc, char **argv)
